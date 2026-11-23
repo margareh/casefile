@@ -20,10 +20,10 @@ const out = {
     if (ch.passphrase.trim().split(/\s+/).length < 3) console.warn(`Weak passphrase for ${ch.name}: use 3+ words.`);
     if (ch.rounds.length !== src.roundCodes.length) throw new Error(`${ch.name}: need ${src.roundCodes.length} rounds`);
     return {
-      id: ch.id, name: ch.name, description: ch.description,
+      id: ch.id, name: ch.name, description: ch.description, image: ch.image || null,
       base: encrypt({ skills: ch.skills, sideQuests: ch.sideQuests }, ch.passphrase),
       // each round is locked by the player's passphrase AND the round code you announce
-      rounds: ch.rounds.map((r, n) => encrypt({ clue: r }, `${ch.passphrase}|${src.roundCodes[n]}`))
+      rounds: ch.rounds.map((r, n) => encrypt({ clues: [].concat(r) }, `${ch.passphrase}|${src.roundCodes[n]}`))
     };
   })
 };

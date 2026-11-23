@@ -4,36 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Murder Mystery</title>
-<style>
-:root{--felt:#17302a;--felt2:#1f3d35;--ink:#efe8d6;--dim:#a9b8ae;--brass:#c9a24d;--wine:#8e2f3b;--line:#35574c;
---serif:"Iowan Old Style",Palatino,"Palatino Linotype","Book Antiqua",Georgia,serif}
-*{box-sizing:border-box}
-html{padding-top:env(safe-area-inset-top,0)}
-body{margin:0;background:var(--felt);color:var(--ink);font:17px/1.6 var(--serif);padding-bottom:env(safe-area-inset-bottom,0)}
-main{max-width:46rem;margin:0 auto;padding:1.25rem}
-h1{font-size:2.1rem;line-height:1.15;margin:.2em 0;letter-spacing:.01em}
-h2{font-size:1.25rem;margin:1.6em 0 .4em;color:var(--brass)}
-h3{margin:0;font-size:1.1rem}
-p{margin:.4em 0}.dim{color:var(--dim)}
-input,select,textarea,button{font:inherit;color:inherit}
-input,select,textarea{width:100%;background:var(--felt2);border:1px solid var(--line);border-radius:4px;padding:.6rem .7rem}
-textarea{min-height:5.5rem;resize:vertical;margin-top:.5rem}
-button{background:var(--brass);color:#1a1405;border:0;border-radius:4px;padding:.6rem 1rem;font-weight:600;cursor:pointer}
-button.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
-:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
-.row{display:flex;gap:.6rem;align-items:center}.row>*:first-child{flex:1}
-.stack>*+*{margin-top:.9rem}
-.bar{display:flex;justify-content:space-between;align-items:center;gap:1rem;border-bottom:1px solid var(--line);padding-bottom:.6rem}
-.tabs{display:flex;gap:.4rem;margin:1rem 0}
-.tabs button{background:none;color:var(--dim);border:1px solid var(--line)}
-.tabs button[aria-selected=true]{background:var(--brass);color:#1a1405;border-color:var(--brass)}
-.card{background:var(--felt2);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:4px;padding:.9rem 1rem}
-.card.locked{border-left-color:var(--wine)}
-ul{margin:.3em 0;padding-left:1.2rem}
-label.chk{display:flex;gap:.6rem;align-items:flex-start}label.chk input{width:auto;margin-top:.45rem}
-.done{text-decoration:line-through;color:var(--dim)}
-.err{color:#f0a0a8;min-height:1.4em;margin:.3em 0}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main id="app"><p class="dim">Loading…</p></main>
@@ -43,6 +14,10 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const norm = s => s.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 let D, me = null, st = null, tab = 'me';
+const nameOf = id => D.characters.find(c => c.id === id).name;
+const initials = n => n.replace(/^(Dr|Mr|Mrs|Ms|Madame|Colonel|Sir|Lady)\.?\s+/i, '').split(' ').map(w => w[0]).join('').slice(0, 2);
+const avatar = (c, lg, jailed) => `<span class="avatar${lg ? ' lg' : ''}${jailed ? ' jailed' : ''}">${esc(initials(c.name))}${c.image ? `<img src="${esc(c.image)}" alt="" onerror="this.remove()">` : ''}</span>`;
+const curRound = () => { for (let i = me.clues.length - 1; i >= 0; i--) if (me.clues[i]) return i; return -1; };
 
 async function dec(blob, secret) {
   const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(norm(secret)), 'PBKDF2', false, ['deriveKey']);
@@ -53,13 +28,16 @@ async function dec(blob, secret) {
 const readStore = id => { try { return JSON.parse(localStorage.getItem('mm:' + id)) || {}; } catch { return {}; } };
 const save = () => { try { localStorage.setItem('mm:' + me.id, JSON.stringify(st)); } catch {} };
 
+async function unlock(i, code) {
+  me.clues[i] = (await dec(me.rounds[i], me.pass + '|' + code)).clues;
+}
 async function login(id, pass) {
   const ch = D.characters.find(c => c.id === id);
   try { var base = await dec(ch.base, pass); } catch { return false; }
   me = {...ch, pass, base, clues: []};
-  st = Object.assign({notes:{}, codes:[], done:{}}, readStore(id));
+  st = Object.assign({notes:{}, codes:[], done:{}, jail:{}}, readStore(id));
   for (let i = 0; i < ch.rounds.length; i++) {
-    if (st.codes[i]) { try { me.clues[i] = (await dec(ch.rounds[i], pass + '|' + st.codes[i])).clue; } catch {} }
+    if (st.codes[i]) { try { await unlock(i, st.codes[i]); } catch {} }
   }
   try { sessionStorage.setItem('mm:session', JSON.stringify({id, pass})); } catch {}
   return true;
@@ -70,17 +48,20 @@ function render() {
   if (!me) return renderLogin();
   const others = D.characters.filter(c => c.id !== me.id);
   const rounds = me.rounds.map((_, i) => {
-    const clue = me.clues[i];
-    return clue
-      ? `<div class="card"><h3>Round ${i+1}</h3><p>${esc(clue)}</p></div>`
+    const clues = me.clues[i];
+    return clues
+      ? `<div class="card"><h3>Round ${i+1}</h3>${clues.map(c => `<p>${esc(c)}</p>`).join('')}</div>`
       : `<form class="card locked" data-round="${i}"><h3>Round ${i+1}</h3>
          <p class="dim">Locked. Enter the code your host announces.</p>
-         <div class="row"><input name="code" autocomplete="off" aria-label="Round ${i+1} code"><button>Reveal round ${i+1}</button></div>
+         <div class="row"><input name="roundcode" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Round ${i+1} code"><button>Reveal round ${i+1}</button></div>
          <p class="err" role="alert"></p></form>`;
   }).join('');
   const quests = me.base.sideQuests.map((q, i) =>
     `<li style="list-style:none"><label class="chk"><input type="checkbox" data-quest="${i}" ${st.done[i] ? 'checked' : ''}><span class="${st.done[i] ? 'done' : ''}">${esc(q)}</span></label></li>`).join('');
-  const cast = others.map(c => `<div class="card"><h3>${esc(c.name)}</h3><p class="dim">${esc(c.description)}</p>
+  const cur = curRound(), nr = me.rounds.length;
+  const isJailed = c => cur >= 0 && !!(st.jail[c.id] || [])[cur];
+  const cast = others.map(c => `<div class="card"><div class="who">${avatar(c, false, isJailed(c))}<div><h3>${esc(c.name)}${isJailed(c) ? '<span class="tag">In jail</span>' : ''}</h3><p class="dim">${esc(c.description)}</p></div></div>
+      <div class="jailrow" role="group" aria-label="Rounds ${esc(c.name)} was in jail"><span class="dim">In jail:</span>${Array.from({length: nr}, (_, i) => `<label><input type="checkbox" data-jail="${c.id}:${i}" ${(st.jail[c.id] || [])[i] ? 'checked' : ''}>Round ${i+1}</label>`).join('')}</div>
       <textarea data-note="${c.id}" aria-label="Notes on ${esc(c.name)}" placeholder="Your private notes on ${esc(c.name)}">${esc(st.notes[c.id] || '')}</textarea></div>`).join('');
   $('#app').innerHTML = `
     <div class="bar"><span class="dim">${esc(D.title)}</span><button class="ghost" data-act="logout">Log out</button></div>
@@ -88,11 +69,11 @@ function render() {
       <button role="tab" aria-selected="${tab==='me'}" data-tab="me">My character</button>
       <button role="tab" aria-selected="${tab==='cast'}" data-tab="cast">Cast and notes</button></div>
     ${tab === 'me' ? `<div class="stack">
-      <h1>${esc(me.name)}</h1><p>${esc(me.description)}</p>
+      <div class="who">${avatar(me, true)}<div><h1>${esc(me.name)}</h1><p>${esc(me.description)}</p></div></div>
       <h2>Hidden skills</h2><ul>${me.base.skills.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
       <h2>Side quests</h2><ul style="padding:0">${quests}</ul>
       <h2>Secrets and clues</h2>${rounds}</div>`
-    : `<div class="stack"><p class="dim">Notes stay on this device and are never shared.</p>${cast}
+    : `<div class="stack"><p class="dim">Notes and jail marks stay on this device and are never shared.</p>${cast}
       <div class="row"><button class="ghost" data-act="copy">Copy all notes</button><span class="dim" id="copied"></span></div></div>`}`;
 }
 
@@ -100,10 +81,10 @@ function renderLogin() {
   $('#app').innerHTML = `<h1>${esc(D.title)}</h1><p>${esc(D.intro)}</p>
     <form id="login" class="stack" style="margin-top:1.5rem">
       <label>Who are you playing?<select name="who">${D.characters.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
-      <label>Your passphrase<input name="pass" type="password" autocomplete="off" required></label>
+      <label>Your passphrase<input name="pass" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
       <p class="err" role="alert" id="loginErr"></p>
       <button>Open my character</button></form>
-    <h2>The cast</h2><div class="stack">${D.characters.map(c => `<div class="card"><h3>${esc(c.name)}</h3><p class="dim">${esc(c.description)}</p></div>`).join('')}</div>`;
+    <h2>The cast</h2><div class="stack">${D.characters.map(c => `<div class="card"><div class="who">${avatar(c)}<div><h3>${esc(c.name)}</h3><p class="dim">${esc(c.description)}</p></div></div></div>`).join('')}</div>`;
 }
 
 document.addEventListener('submit', async e => {
@@ -113,11 +94,15 @@ document.addEventListener('submit', async e => {
     const ok = await login(f.who.value, f.pass.value);
     if (ok) render(); else $('#loginErr').textContent = "That passphrase doesn't match this character. Check the spelling and try again.";
   } else if (f.dataset.round !== undefined) {
-    const i = +f.dataset.round, code = f.code.value;
-    try {
-      me.clues[i] = (await dec(me.rounds[i], me.pass + '|' + code)).clue;
-      st.codes[i] = code; save(); render();
-    } catch { f.querySelector('.err').textContent = `That code doesn't open round ${i + 1}. Check with your host.`; }
+    const i = +f.dataset.round, code = f.elements.roundcode.value;
+    try { await unlock(i, code); }
+    catch (x) {
+      f.querySelector('.err').textContent = x.name === 'OperationError'
+        ? `That code doesn't open round ${i + 1}. Check the spelling, or ask your host.`
+        : `Couldn't open round ${i + 1} (${x.name}: ${x.message}). Reload the page and try again.`;
+      return;
+    }
+    st.codes[i] = code; save(); render();
   }
 });
 document.addEventListener('click', e => {
@@ -134,11 +119,16 @@ document.addEventListener('input', e => {
   if (e.target.dataset.note) { st.notes[e.target.dataset.note] = e.target.value; save(); }
 });
 document.addEventListener('change', e => {
+  if (e.target.dataset.jail) {
+    const [id, n] = e.target.dataset.jail.split(':'), y = scrollY;
+    (st.jail[id] = st.jail[id] || [])[+n] = e.target.checked; save(); render(); scrollTo(0, y); return;
+  }
   if (e.target.dataset.quest !== undefined) { st.done[e.target.dataset.quest] = e.target.checked; save(); render(); }
 });
 
 (async () => {
-  try { D = await (await fetch('data.json')).json(); }
+  if (!window.crypto || !crypto.subtle) { $('#app').innerHTML = '<p>This page needs a secure connection. Open it over https:// or on localhost.</p>'; return; }
+  try { D = await (await fetch('data.json', {cache: 'no-cache'})).json(); }
   catch { $('#app').innerHTML = '<p>Could not load data.json. Run <code>node build.mjs</code> and serve this folder over http.</p>'; return; }
   document.title = D.title;
   try { const s = JSON.parse(sessionStorage.getItem('mm:session')); if (s) await login(s.id, s.pass); } catch {}
