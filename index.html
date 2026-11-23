@@ -23,7 +23,7 @@
       <li>Foes do not want to talk to one another and only share secrets from the last round. For instance, two foes should only share secrets from rounds 1 and 2 when in round 3.</li>
       <li>Whether or not you are the murderer, an accomplice, or innocent will be revealed at the start of the game.</li>
     </ul>
-    <form method="dialog"><button>Close</button></form>
+    <form method="dialog"><button id="closeBtn">Close</button></form>
   </div>
 </dialog>
 <script>
@@ -147,6 +147,7 @@ document.addEventListener('change', e => {
   }
   if (e.target.dataset.quest !== undefined) { st.done[e.target.dataset.quest] = e.target.checked; save(); render(); }
 });
+closeBtn.addEventListener('click', () => $('#rules').close());
 $('#rules').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 
 (async () => {

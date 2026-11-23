@@ -1,7 +1,7 @@
 /* Murder mystery styles. Loaded by index.html. */
 
 /* Colors and fonts: change these to restyle the whole page */
-:root{--felt:#001642;--felt2:#334568;--ink:#fdf8ee;--dim:#ccd0d9;--brass:#ebb858;--wine:#a5813e;--line:#737f97;
+:root{--felt:#001642;--felt2:#334568;--ink:#fdf8ee;--dim:#ccd0d9;--brass:#ebb858;--wine:#444444;--line:#737f97;
 --serif:"Iowan Old Style",Palatino,"Palatino Linotype","Book Antiqua",Georgia,serif}
 
 /* Page and text */
@@ -53,7 +53,7 @@ label.chk{display:flex;gap:.6rem;align-items:flex-start}label.chk input{width:au
 .jailrow label{display:flex;gap:.4rem;align-items:center}.jailrow input{width:auto}
 
 /* Rules pop-up */
-dialog{background:var(--felt2);color:var(--ink);border:1px solid var(--brass);border-radius:6px;padding:0;max-width:min(34rem,calc(100% - 2rem));font:inherit}
+dialog{background:var(--felt2);color:var(--ink);border:1px solid var(--brass);border-radius:6px;padding:0;max-width:min(50rem,calc(100% - 2rem));font:inherit}
 dialog::backdrop{background:rgba(0,0,0,.65)}
 .dialog-body{padding:1.25rem;max-height:85vh;overflow:auto}
 .dialog-body h2:first-child{margin-top:0}
