@@ -8,6 +8,24 @@
 </head>
 <body>
 <main id="app"><p class="dim">Loading…</p></main>
+<dialog id="rules" aria-labelledby="rules-title">
+  <div class="dialog-body">
+    <h2 id="rules-title">Rules of the Game</h2>
+    <ul>
+      <li>There are 5 rounds in this game. After rounds 1-4, a vote is taken and the character with the most votes is sent to the dungeons. After the final round, the vote is who is "convicted" of murder and determines if the murderer and accomplice(s) get away with it.</li>
+      <li>Each round, your host will announce a code. Enter it on your character page to reveal your secrets for that round.</li>
+      <li>Rounds are nominally 20 minutes, but may be extended by popular demand or at the organizer's discretion.</li>
+      <li>Each character has a special skill that may help them in this game. You are not required to tell others your skill, nor are you required to keep it a secret.</li>
+      <li>Complete your side quests if you can. Tick them off when done.</li>
+      <li>Use the Cast tab to take private notes and track who has been sent to the dungeons and when.</li>
+      <li>If you are (locked) in the dungeons, NO USING YOUR SPECIAL SKILL. Visitors to the dungeons may still use their skill.</li>
+      <li>Friends may share secrets that are one round beyond the current one. For instance, two friends may share round 3 secrets in round 2.</li>
+      <li>Foes do not want to talk to one another and only share secrets from the last round. For instance, two foes should only share secrets from rounds 1 and 2 when in round 3.</li>
+      <li>Whether or not you are the murderer, an accomplice, or innocent will be revealed at the start of the game.</li>
+    </ul>
+    <form method="dialog"><button>Close</button></form>
+  </div>
+</dialog>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -32,14 +50,18 @@ async function unlock(i, code) {
   me.clues[i] = (await dec(me.rounds[i], me.pass + '|' + code)).clues;
 }
 async function login(id, pass) {
-  const ch = D.characters.find(c => c.id === id);
-  try { var base = await dec(ch.base, pass); } catch { return false; }
+  // id is optional: with no id, try the passphrase against every character
+  let ch, base;
+  for (const c of (id ? D.characters.filter(c => c.id === id) : D.characters)) {
+    try { base = await dec(c.base, pass); ch = c; break; } catch {}
+  }
+  if (!ch) return false;
   me = {...ch, pass, base, clues: []};
-  st = Object.assign({notes:{}, codes:[], done:{}, jail:{}}, readStore(id));
+  st = Object.assign({notes:{}, codes:[], done:{}, jail:{}}, readStore(ch.id));
   for (let i = 0; i < ch.rounds.length; i++) {
     if (st.codes[i]) { try { await unlock(i, st.codes[i]); } catch {} }
   }
-  try { sessionStorage.setItem('mm:session', JSON.stringify({id, pass})); } catch {}
+  try { sessionStorage.setItem('mm:session', JSON.stringify({id: ch.id, pass})); } catch {}
   return true;
 }
 function logout() { me = null; try { sessionStorage.removeItem('mm:session'); } catch {} render(); }
@@ -64,14 +86,14 @@ function render() {
       <div class="jailrow" role="group" aria-label="Rounds ${esc(c.name)} was in jail"><span class="dim">In jail:</span>${Array.from({length: nr}, (_, i) => `<label><input type="checkbox" data-jail="${c.id}:${i}" ${(st.jail[c.id] || [])[i] ? 'checked' : ''}>Round ${i+1}</label>`).join('')}</div>
       <textarea data-note="${c.id}" aria-label="Notes on ${esc(c.name)}" placeholder="Your private notes on ${esc(c.name)}">${esc(st.notes[c.id] || '')}</textarea></div>`).join('');
   $('#app').innerHTML = `
-    <div class="bar"><span class="dim">${esc(D.title)}</span><button class="ghost" data-act="logout">Log out</button></div>
+    <div class="bar"><span class="dim">${esc(D.title)}</span><span><button class="ghost" data-act="rules">Rules</button> <button class="ghost" data-act="logout">Log out</button></span></div>
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="${tab==='me'}" data-tab="me">My character</button>
       <button role="tab" aria-selected="${tab==='cast'}" data-tab="cast">Cast and notes</button></div>
     ${tab === 'me' ? `<div class="stack">
       <div class="who">${avatar(me, true)}<div><h1>${esc(me.name)}</h1><p>${esc(me.description)}</p></div></div>
-      <h2>Hidden skills</h2><ul>${me.base.skills.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
-      <h2>Side quests</h2><ul style="padding:0">${quests}</ul>
+      <h2>Hidden skill</h2><ul>${me.base.skills.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
+      <h2>Side quest</h2><ul style="padding:0">${quests}</ul>
       <h2>Secrets and clues</h2>${rounds}</div>`
     : `<div class="stack"><p class="dim">Notes and jail marks stay on this device and are never shared.</p>${cast}
       <div class="row"><button class="ghost" data-act="copy">Copy all notes</button><span class="dim" id="copied"></span></div></div>`}`;
@@ -80,7 +102,6 @@ function render() {
 function renderLogin() {
   $('#app').innerHTML = `<h1>${esc(D.title)}</h1><p>${esc(D.intro)}</p>
     <form id="login" class="stack" style="margin-top:1.5rem">
-      <label>Who are you playing?<select name="who">${D.characters.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
       <label>Your passphrase<input name="pass" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
       <p class="err" role="alert" id="loginErr"></p>
       <button>Open my character</button></form>
@@ -91,8 +112,8 @@ document.addEventListener('submit', async e => {
   e.preventDefault();
   const f = e.target;
   if (f.id === 'login') {
-    const ok = await login(f.who.value, f.pass.value);
-    if (ok) render(); else $('#loginErr').textContent = "That passphrase doesn't match this character. Check the spelling and try again.";
+    const ok = await login(null, f.pass.value);
+    if (ok) render(); else $('#loginErr').textContent = "That passphrase doesn't match any character. Check the spelling and try again.";
   } else if (f.dataset.round !== undefined) {
     const i = +f.dataset.round, code = f.elements.roundcode.value;
     try { await unlock(i, code); }
@@ -109,6 +130,7 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-tab],[data-act]'); if (!t) return;
   if (t.dataset.tab) { tab = t.dataset.tab; render(); }
   else if (t.dataset.act === 'logout') logout();
+  else if (t.dataset.act === 'rules') $('#rules').showModal();
   else if (t.dataset.act === 'copy') {
     const txt = D.characters.filter(c => st.notes[c.id]).map(c => `${c.name}\n${st.notes[c.id]}`).join('\n\n');
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(
@@ -125,6 +147,7 @@ document.addEventListener('change', e => {
   }
   if (e.target.dataset.quest !== undefined) { st.done[e.target.dataset.quest] = e.target.checked; save(); render(); }
 });
+$('#rules').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 
 (async () => {
   if (!window.crypto || !crypto.subtle) { $('#app').innerHTML = '<p>This page needs a secure connection. Open it over https:// or on localhost.</p>'; return; }

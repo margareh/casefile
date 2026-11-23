@@ -14,6 +14,12 @@ function encrypt(obj, secret) {
 }
 
 const src = JSON.parse(readFileSync('characters.source.json', 'utf8'));
+const seen = new Set();
+for (const ch of src.characters) {
+  const p = norm(ch.passphrase);
+  if (seen.has(p)) throw new Error(`Duplicate passphrase for ${ch.name}`);
+  seen.add(p);
+}
 const out = {
   title: src.title, intro: src.intro, iter: ITER,
   characters: src.characters.map(ch => {
