@@ -26,7 +26,7 @@ const out = {
     if (ch.passphrase.trim().split(/\s+/).length < 3) console.warn(`Weak passphrase for ${ch.name}: use 3+ words.`);
     return {
       id: ch.id, name: ch.name, description: ch.description, image: ch.image || null,
-      base: encrypt({ skills: ch.skills, sideQuests: ch.sideQuests, rounds: ch.rounds.map(r => [].concat(r)) }, ch.passphrase)
+      base: encrypt({ skills: ch.skills, friends: ch.friends, foes: ch.foes, sideQuests: ch.sideQuests, rounds: ch.rounds.map(r => [].concat(r)) }, ch.passphrase)
     };
   })
 };

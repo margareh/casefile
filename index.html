@@ -80,6 +80,7 @@ function render() {
     ${tab === 'me' ? `<div class="stack">
       <div class="who">${avatar(me, true)}<div><h1>${esc(me.name)}</h1><p>${esc(me.description)}</p></div></div>
       <h2>Hidden skill</h2><ul>${me.base.skills.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
+      <h2>Friends and foes</h2><h3>Friends</h3><ul>${me.base.friends.map(f => `<li>${esc(f)}</li>`).join('')}</ul><h3>Foes</h3><ul>${me.base.foes.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
       <h2>Side quest</h2><ul style="padding:0">${quests}</ul>
       <h2>Secrets and clues</h2>${rounds}</div>`
     : `<div class="stack"><p class="dim">Notes and dungeon check marks stay on this device and are never shared.</p>${cast}
