@@ -35,7 +35,6 @@ let D, me = null, st = null, tab = 'me';
 const nameOf = id => D.characters.find(c => c.id === id).name;
 const initials = n => n.replace(/^(Dr|Mr|Mrs|Ms|Madame|Colonel|Sir|Lady)\.?\s+/i, '').split(' ').map(w => w[0]).join('').slice(0, 2);
 const avatar = (c, lg, jailed) => `<span class="avatar${lg ? ' lg' : ''}${jailed ? ' jailed' : ''}">${esc(initials(c.name))}${c.image ? `<img src="${esc(c.image)}" alt="" onerror="this.remove()">` : ''}</span>`;
-const curRound = () => { for (let i = me.clues.length - 1; i >= 0; i--) if (me.clues[i]) return i; return -1; };
 
 async function dec(blob, secret) {
   const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(norm(secret)), 'PBKDF2', false, ['deriveKey']);
@@ -46,9 +45,6 @@ async function dec(blob, secret) {
 const readStore = id => { try { return JSON.parse(localStorage.getItem('mm:' + id)) || {}; } catch { return {}; } };
 const save = () => { try { localStorage.setItem('mm:' + me.id, JSON.stringify(st)); } catch {} };
 
-async function unlock(i, code) {
-  me.clues[i] = (await dec(me.rounds[i], me.pass + '|' + code)).clues;
-}
 async function login(id, pass) {
   // id is optional: with no id, try the passphrase against every character
   let ch, base;
@@ -56,11 +52,8 @@ async function login(id, pass) {
     try { base = await dec(c.base, pass); ch = c; break; } catch {}
   }
   if (!ch) return false;
-  me = {...ch, pass, base, clues: []};
+  me = {...ch, pass, base};
   st = Object.assign({notes:{}, codes:[], done:{}, jail:{}}, readStore(ch.id));
-  for (let i = 0; i < ch.rounds.length; i++) {
-    if (st.codes[i]) { try { await unlock(i, st.codes[i]); } catch {} }
-  }
   try { sessionStorage.setItem('mm:session', JSON.stringify({id: ch.id, pass})); } catch {}
   return true;
 }
@@ -69,21 +62,14 @@ function logout() { me = null; try { sessionStorage.removeItem('mm:session'); } 
 function render() {
   if (!me) return renderLogin();
   const others = D.characters.filter(c => c.id !== me.id);
-  const rounds = me.rounds.map((_, i) => {
-    const clues = me.clues[i];
-    return clues
-      ? `<div class="card"><h3>Round ${i+1}</h3>${clues.map(c => `<p>${esc(c)}</p>`).join('')}</div>`
-      : `<form class="card locked" data-round="${i}"><h3>Round ${i+1}</h3>
-         <p class="dim">Locked. Enter the code your host announces.</p>
-         <div class="row"><input name="roundcode" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Round ${i+1} code"><button>Reveal round ${i+1}</button></div>
-         <p class="err" role="alert"></p></form>`;
-  }).join('');
+  const rounds = me.base.rounds.map((clues, i) =>
+    `<div class="card"><h3>Round ${i+1}</h3>${clues.map(c => `<p>${esc(c)}</p>`).join('')}</div>`).join('');
   const quests = me.base.sideQuests.map((q, i) =>
     `<li style="list-style:none"><label class="chk"><input type="checkbox" data-quest="${i}" ${st.done[i] ? 'checked' : ''}><span class="${st.done[i] ? 'done' : ''}">${esc(q)}</span></label></li>`).join('');
-  const cur = curRound(), nr = me.rounds.length;
-  const isJailed = c => cur >= 0 && !!(st.jail[c.id] || [])[cur];
-  const cast = others.map(c => `<div class="card"><div class="who">${avatar(c, false, isJailed(c))}<div><h3>${esc(c.name)}${isJailed(c) ? '<span class="tag">In jail</span>' : ''}</h3><p class="dim">${esc(c.description)}</p></div></div>
-      <div class="jailrow" role="group" aria-label="Rounds ${esc(c.name)} was in jail"><span class="dim">In jail:</span>${Array.from({length: nr}, (_, i) => `<label><input type="checkbox" data-jail="${c.id}:${i}" ${(st.jail[c.id] || [])[i] ? 'checked' : ''}>Round ${i+1}</label>`).join('')}</div>
+    const nr = me.base.rounds.length;
+  const jailed = c => (st.jail[c.id] || []).map((on, i) => on ? 'R' + (i + 1) : '').filter(Boolean).join(', ');
+  const cast = others.map(c => `<div class="card"><div class="who">${avatar(c)}<div><h3>${esc(c.name)}${jailed(c) ? `<span class="tag">In jail: ${jailed(c)}</span>` : ''}</h3><p class="dim">${esc(c.description)}</p></div></div>
+      <div class="jailrow" role="group" aria-label="Rounds ${esc(c.name)} was in jail"><span class="dim">In the dungeon:</span>${Array.from({length: nr}, (_, i) => `<label><input type="checkbox" data-jail="${c.id}:${i}" ${(st.jail[c.id] || [])[i] ? 'checked' : ''}>Round ${i+1}</label>`).join('')}</div>
       <textarea data-note="${c.id}" aria-label="Notes on ${esc(c.name)}" placeholder="Your private notes on ${esc(c.name)}">${esc(st.notes[c.id] || '')}</textarea></div>`).join('');
   $('#app').innerHTML = `
     <div class="bar"><span class="dim">${esc(D.title)}</span><span><button class="ghost" data-act="rules">Rules</button> <button class="ghost" data-act="logout">Log out</button></span></div>
@@ -95,7 +81,7 @@ function render() {
       <h2>Hidden skill</h2><ul>${me.base.skills.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
       <h2>Side quest</h2><ul style="padding:0">${quests}</ul>
       <h2>Secrets and clues</h2>${rounds}</div>`
-    : `<div class="stack"><p class="dim">Notes and jail marks stay on this device and are never shared.</p>${cast}
+    : `<div class="stack"><p class="dim">Notes and dungeon check marks stay on this device and are never shared.</p>${cast}
       <div class="row"><button class="ghost" data-act="copy">Copy all notes</button><span class="dim" id="copied"></span></div></div>`}`;
 }
 
@@ -109,22 +95,11 @@ function renderLogin() {
 }
 
 document.addEventListener('submit', async e => {
-  e.preventDefault();
   const f = e.target;
-  if (f.id === 'login') {
-    const ok = await login(null, f.pass.value);
-    if (ok) render(); else $('#loginErr').textContent = "That passphrase doesn't match any character. Check the spelling and try again.";
-  } else if (f.dataset.round !== undefined) {
-    const i = +f.dataset.round, code = f.elements.roundcode.value;
-    try { await unlock(i, code); }
-    catch (x) {
-      f.querySelector('.err').textContent = x.name === 'OperationError'
-        ? `That code doesn't open round ${i + 1}. Check the spelling, or ask your host.`
-        : `Couldn't open round ${i + 1} (${x.name}: ${x.message}). Reload the page and try again.`;
-      return;
-    }
-    st.codes[i] = code; save(); render();
-  }
+  if (f.id !== 'login') return;
+  e.preventDefault();
+  const ok = await login(null, f.pass.value);
+  if (ok) render(); else $('#loginErr').textContent = "That passphrase doesn't match any character. Check the spelling and try again.";
 });
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-tab],[data-act]'); if (!t) return;

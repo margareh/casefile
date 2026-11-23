@@ -24,14 +24,11 @@ const out = {
   title: src.title, intro: src.intro, iter: ITER,
   characters: src.characters.map(ch => {
     if (ch.passphrase.trim().split(/\s+/).length < 3) console.warn(`Weak passphrase for ${ch.name}: use 3+ words.`);
-    if (ch.rounds.length !== src.roundCodes.length) throw new Error(`${ch.name}: need ${src.roundCodes.length} rounds`);
     return {
       id: ch.id, name: ch.name, description: ch.description, image: ch.image || null,
-      base: encrypt({ skills: ch.skills, sideQuests: ch.sideQuests }, ch.passphrase),
-      // each round is locked by the player's passphrase AND the round code you announce
-      rounds: ch.rounds.map((r, n) => encrypt({ clues: [].concat(r) }, `${ch.passphrase}|${src.roundCodes[n]}`))
+      base: encrypt({ skills: ch.skills, sideQuests: ch.sideQuests, rounds: ch.rounds.map(r => [].concat(r)) }, ch.passphrase)
     };
   })
 };
 writeFileSync('data.json', JSON.stringify(out));
-console.log(`Built data.json for ${out.characters.length} characters, ${src.roundCodes.length} rounds.`);
+console.log(`Built data.json for ${out.characters.length} characters.`);
