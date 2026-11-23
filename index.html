@@ -63,7 +63,8 @@ function render() {
   if (!me) return renderLogin();
   const others = D.characters.filter(c => c.id !== me.id);
   const rounds = me.base.rounds.map((clues, i) =>
-    `<div class="card"><h3>Round ${i+1}</h3>${clues.map(c => `<p>${esc(c)}</p>`).join('')}</div>`).join('');
+    `<div class="card"><h3>Round ${i+1}</h3><p>Locked</p></div>`).join('');
+    // `<div class="card"><h3>Round ${i+1}</h3>${clues.map(c => `<p>${esc(c)}</p>`).join('')}</div>`).join('');
   const quests = me.base.sideQuests.map((q, i) =>
     `<li style="list-style:none"><label class="chk"><input type="checkbox" data-quest="${i}" ${st.done[i] ? 'checked' : ''}><span class="${st.done[i] ? 'done' : ''}">${esc(q)}</span></label></li>`).join('');
     const nr = me.base.rounds.length;
