@@ -12,16 +12,16 @@
   <div class="dialog-body">
     <h2 id="rules-title">Rules of the Game</h2>
     <ul>
-      <li>There are 5 rounds in this game. After rounds 1-4, a vote is taken and the character with the most votes is sent to the dungeons. After the final round, the vote is who is "convicted" of murder and determines if the murderer and accomplice(s) get away with it.</li>
-      <li>Each round, your host will announce a code. Enter it on your character page to reveal your secrets for that round.</li>
-      <li>Rounds are nominally 20 minutes, but may be extended by popular demand or at the organizer's discretion.</li>
-      <li>Each character has a special skill that may help them in this game. You are not required to tell others your skill, nor are you required to keep it a secret.</li>
-      <li>Complete your side quests if you can. Tick them off when done.</li>
-      <li>Use the Cast tab to take private notes and track who has been sent to the dungeons and when.</li>
-      <li>If you are (locked) in the dungeons, NO USING YOUR SPECIAL SKILL. Visitors to the dungeons may still use their skill.</li>
-      <li>Friends may share secrets that are one round beyond the current one. For instance, two friends may share round 3 secrets in round 2.</li>
-      <li>Foes do not want to talk to one another and only share secrets from the last round. For instance, two foes should only share secrets from rounds 1 and 2 when in round 3.</li>
       <li>Whether or not you are the murderer, an accomplice, or innocent will be revealed at the start of the game.</li>
+      <li>There are 5 rounds in this game. After rounds 1-4, a vote is taken and the character with the most votes is sent to the dungeons. After the final round, the vote is who is "convicted" of murder and determines if the murderer and accomplice(s) get away with it.</li>
+      <li>Each round has an associated set of secrets. You can only share secrets from a current (or prior) round, even if you have explanations for things based on secrets for a later round.</li>
+      <li>Friends may share secrets that are one round beyond the current one. For instance, two friends may share round 3 secrets in round 2.</li>
+      <li>Foes do not want to talk to one another and only share secrets from prior rounds. For instance, two foes should only share secrets from rounds 1 and 2 when in round 3.</li>
+      <li>Rounds are nominally 20 minutes, but may be extended by popular demand or at the organizer's discretion.</li>
+      <li>Each character has a special skill that may help them in this game. You are not required to tell others your skill, nor are you required to keep it a secret (once the game begins).</li>
+      <li>If you are (locked) in the dungeons, NO USING YOUR SPECIAL SKILL. Visitors to the dungeons may still use their skill.</li>
+      <li>Complete your side quests if you can. You can check them off when done if desired.</li>
+      <li>Use the Cast tab to take private notes and track who has been sent to the dungeons and when.</li>
     </ul>
     <form method="dialog"><button id="closeBtn">Close</button></form>
   </div>
@@ -92,7 +92,7 @@ function renderLogin() {
     <form id="login" class="stack" style="margin-top:1.5rem">
       <label>Your passphrase<input name="pass" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
       <p class="err" role="alert" id="loginErr"></p>
-      <button>Open my character</button></form>
+      <button>Unlock my character</button></form>
     <h2>The cast</h2><div class="stack">${D.characters.map(c => `<div class="card"><div class="who">${avatar(c)}<div><h3>${esc(c.name)}</h3><p class="dim">${esc(c.description)}</p></div></div></div>`).join('')}</div>`;
 }
 
