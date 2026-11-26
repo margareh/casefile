@@ -63,8 +63,8 @@ function render() {
   if (!me) return renderLogin();
   const others = D.characters.filter(c => c.id !== me.id);
   const rounds = me.base.rounds.map((clues, i) =>
-    `<div class="card"><h3>Round ${i+1}</h3><p>Locked</p></div>`).join('');
-    // `<div class="card"><h3>Round ${i+1}</h3>${clues.map(c => `<p>${esc(c)}</p>`).join('')}</div>`).join('');
+    // `<div class="card"><h3>Round ${i+1}</h3><p>Locked</p></div>`).join('');
+    `<div class="card"><h3>Round ${i+1}</h3><ul>${clues.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>`).join('');
   const quests = me.base.sideQuests.map((q, i) =>
     `<li style="list-style:none"><label class="chk"><input type="checkbox" data-quest="${i}" ${st.done[i] ? 'checked' : ''}><span class="${st.done[i] ? 'done' : ''}">${esc(q)}</span></label></li>`).join('');
     const nr = me.base.rounds.length;
@@ -72,6 +72,9 @@ function render() {
   const cast = others.map(c => `<div class="card"><div class="who">${avatar(c)}<div><h3>${esc(c.name)}${jailed(c) ? `<span class="tag">In jail: ${jailed(c)}</span>` : ''}</h3><p class="dim">${esc(c.description)}</p></div></div>
       <div class="jailrow" role="group" aria-label="Rounds ${esc(c.name)} was in jail"><span class="dim">In the dungeon:</span>${Array.from({length: nr}, (_, i) => `<label><input type="checkbox" data-jail="${c.id}:${i}" ${(st.jail[c.id] || [])[i] ? 'checked' : ''}>Round ${i+1}</label>`).join('')}</div>
       <textarea data-note="${c.id}" aria-label="Notes on ${esc(c.name)}" placeholder="Your private notes on ${esc(c.name)}">${esc(st.notes[c.id] || '')}</textarea></div>`).join('');
+  const list = (title, items) => items && items.length
+    ? `<h3>${title}</h3><ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+    : '';
   $('#app').innerHTML = `
     <div class="bar"><span class="dim">${esc(D.title)}</span><span><button class="ghost" data-act="rules">Rules</button> <button class="ghost" data-act="logout">Log out</button></span></div>
     <div class="tabs" role="tablist">
@@ -80,7 +83,7 @@ function render() {
     ${tab === 'me' ? `<div class="stack">
       <div class="who">${avatar(me, true)}<div><h1>${esc(me.name)}</h1><p>${esc(me.description)}</p></div></div>
       <h2>Hidden skill</h2><ul>${me.base.skills.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
-      <h2>Friends and foes</h2><h3>Friends</h3><ul>${me.base.friends.map(f => `<li>${esc(f)}</li>`).join('')}</ul><h3>Foes</h3><ul>${me.base.foes.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
+      <h2>Friends and foes</h2>${list('Friends', me.base.friends)}${list('Foes', me.base.foes)}
       <h2>Side quest</h2><ul style="padding:0">${quests}</ul>
       <h2>Secrets and clues</h2>${rounds}</div>`
     : `<div class="stack"><p class="dim">Notes and dungeon check marks stay on this device and are never shared.</p>${cast}
